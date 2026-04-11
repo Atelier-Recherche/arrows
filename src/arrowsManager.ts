@@ -123,6 +123,9 @@ export class ArrowsManager {
         if (startArrowData.type == constants.DIAGONAL) {
             line = this.drawDiagonalArrow(startEl, endEl, startArrowData, endArrowData);
         }
+        else if (startArrowData.type == constants.STRAIGHT) {
+            line = this.drawStraightArrow(startEl, endEl, startArrowData, endArrowData);
+        }
         else {
             line = this.drawMarginArrow(startEl, endEl, startArrowData, endArrowData, startOffscreen, endOffscreen);
         }
@@ -138,11 +141,32 @@ export class ArrowsManager {
         const color = colorToEffectiveColor(startArrowData.color, getArrowConfigFromView(this.view));
         const plugs = getStartEndArrowPlugs(constants.DIAGONAL_ARROW, startArrowData.arrowArrowhead, endArrowData.arrowArrowhead);
 
+        // For box type, adjust the start position to be at the bottom center of the box
+        let startAnchor: any = startEl;
+        let endAnchor: any = endEl;
+
+        if (startArrowData.isBox) {
+            const boxEl = this.findBoxElement(startEl);
+            if (boxEl) {
+                const boxWidth = boxEl.offsetWidth;
+                const boxHeight = boxEl.offsetHeight;
+                startAnchor = LeaderLine.PointAnchor(boxEl, {x: boxWidth / 2, y: boxHeight});
+            }
+        }
+        
+        if (endArrowData.isBox) {
+            const boxEl = this.findBoxElement(endEl);
+            if (boxEl) {
+                const boxWidth = boxEl.offsetWidth;
+                endAnchor = LeaderLine.PointAnchor(boxEl, {x: boxWidth / 2, y: 0});
+            }
+        }
+
         // @ts-ignore
         const line = new LeaderLine({
             parent: this.container,
-            start: startEl,
-            end: endEl,
+            start: startAnchor as any,
+            end: endAnchor as any,
             color: color,
             size: constants.ARROW_SIZE,
             ...plugs,
@@ -152,8 +176,49 @@ export class ArrowsManager {
         return line;
     }
 
+    drawStraightArrow(startEl: HTMLElement, endEl: HTMLElement, startArrowData: ArrowIdentifierData, endArrowData: ArrowIdentifierData) {
+        if (startEl == endEl) return;
+
+        const color = colorToEffectiveColor(startArrowData.color, getArrowConfigFromView(this.view));
+        const plugs = getStartEndArrowPlugs(constants.STRAIGHT_ARROW, startArrowData.arrowArrowhead, endArrowData.arrowArrowhead);
+
+        // For box type, adjust the start position to be at the bottom center of the box
+        let startAnchor: any = startEl;
+        let endAnchor: any = endEl;
+
+        if (startArrowData.isBox) {
+            const boxEl = this.findBoxElement(startEl);
+            if (boxEl) {
+                const boxWidth = boxEl.offsetWidth;
+                const boxHeight = boxEl.offsetHeight;
+                startAnchor = LeaderLine.PointAnchor(boxEl, {x: boxWidth / 2, y: boxHeight});
+            }
+        }
+        
+        if (endArrowData.isBox) {
+            const boxEl = this.findBoxElement(endEl);
+            if (boxEl) {
+                const boxWidth = boxEl.offsetWidth;
+                endAnchor = LeaderLine.PointAnchor(boxEl, {x: boxWidth / 2, y: 0});
+            }
+        }
+
+        // @ts-ignore
+        const line = new LeaderLine({
+            parent: this.container,
+            start: startAnchor as any,
+            end: endAnchor as any,
+            color: color,
+            size: constants.ARROW_SIZE,
+            ...plugs,
+            path: "straight"
+        });
+
+        return line;
+    }
+
     drawMarginArrow(startEl: HTMLElement, endEl: HTMLElement, startArrowData: ArrowIdentifierData, endArrowData: ArrowIdentifierData, startOffscreen: OffscreenPosition, endOffscreen: OffscreenPosition) {
-        const res = this.getMarginArrowStartEndAnchors(startEl, endEl, startOffscreen, endOffscreen);
+        const res = this.getMarginArrowStartEndAnchors(startEl, endEl, startArrowData, endArrowData, startOffscreen, endOffscreen);
         if (!res) return;
         const {startAnchor, endAnchor} = res;
 
@@ -165,8 +230,8 @@ export class ArrowsManager {
         // @ts-ignore
         const line = new LeaderLine({
             parent: this.container,
-            start: startAnchor,
-            end: endAnchor,
+            start: startAnchor as any,
+            end: endAnchor as any,
             color: color,
             size: constants.ARROW_SIZE,
             ...plugs,
@@ -182,6 +247,44 @@ export class ArrowsManager {
         makeArrowArc(line, radius);
 
         return line;
+    }
+
+    findBoxElement(el: HTMLElement): HTMLElement | null {
+        // Search for the box element near this element
+        // The box should be a sibling or parent
+        
+        // First, check if the element itself or a parent has the box class
+        let current: HTMLElement | null = el;
+        while (current && !current.hasClass("cm-line")) {
+            if (current.hasClass(constants.ARROW_BOX_CLASS)) {
+                return current;
+            }
+            current = current.parentElement;
+        }
+        
+        // If not found, look for a sibling box element
+        const line = el.closest(".cm-line");
+        if (!line) return null;
+        
+        // Find all boxes in the line
+        const boxes = line.querySelectorAll(`.${constants.ARROW_BOX_CLASS}`);
+        if (boxes.length === 0) return null;
+        if (boxes.length === 1) return boxes[0] as HTMLElement;
+        
+        // If multiple boxes, find the closest one to our element
+        let closestBox: HTMLElement | null = null;
+        let minDistance = Infinity;
+        
+        for (const box of boxes) {
+            if (!(box instanceof HTMLElement)) continue;
+            const distance = Math.abs(box.offsetLeft - el.offsetLeft);
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestBox = box;
+            }
+        }
+        
+        return closestBox;
     }
 
     getArrowRecord(line:LeaderLine, startEl: HTMLElement, endEl: HTMLElement, startArrowData: ArrowIdentifierData, endArrowData: ArrowIdentifierData, startOffscreen: OffscreenPosition, endOffscreen: OffscreenPosition) {
@@ -241,14 +344,24 @@ export class ArrowsManager {
         }
     }
 
-    getMarginArrowStartEndAnchors(start: HTMLElement, end: HTMLElement, startOffscreen: OffscreenPosition, endOffscreen: OffscreenPosition) {
+    getMarginArrowStartEndAnchors(start: HTMLElement, end: HTMLElement, startArrowData: ArrowIdentifierData, endArrowData: ArrowIdentifierData, startOffscreen: OffscreenPosition, endOffscreen: OffscreenPosition) {
         // Draw the arrow at the same y-position as the arrow identifier
         // If a start/end identifier is off-screen, then start and end point to the first/last .cm-lines in the editor
 
         const s = start.closest(".cm-line");
         if (!(s instanceof HTMLElement)) return;
         let sy;
-        if (startOffscreen != 0) {
+        
+        // For box type, adjust the start position to be at the bottom of the box
+        if (startArrowData.isBox && startOffscreen === 0) {
+            const boxEl = this.findBoxElement(start);
+            if (boxEl) {
+                sy = boxEl.offsetTop + boxEl.offsetHeight;
+            } else {
+                sy = start.offsetTop + (start.offsetHeight / 2);
+            }
+        }
+        else if (startOffscreen != 0) {
             // Stop long margin arrows from flickering when scrolling up/down a page
             // By drawing long margin arrows past the very top/bottom of the screen by setting y appropriately
             sy = startOffscreen * 1000;
@@ -260,7 +373,17 @@ export class ArrowsManager {
         const e = end.closest(".cm-line");
         if (!(e instanceof HTMLElement)) return;
         let ey;
-        if (endOffscreen != 0) {
+        
+        // For box type, adjust the end position to be at the top of the box
+        if (endArrowData.isBox && endOffscreen === 0) {
+            const boxEl = this.findBoxElement(end);
+            if (boxEl) {
+                ey = boxEl.offsetTop;
+            } else {
+                ey = end.offsetTop + (end.offsetHeight / 2);
+            }
+        }
+        else if (endOffscreen != 0) {
             ey = endOffscreen * 1000;
         }
         else {

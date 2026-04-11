@@ -3,7 +3,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { Workspace, MarkdownView } from "obsidian";
-import { ARROW, MARGIN, NOARROW, DISC, arrowTypes, arrowPlugTypes } from "./consts";
+import { ARROW, MARGIN, NOARROW, DISC, BOX, arrowTypes, arrowPlugTypes } from "./consts";
 import { ArrowsPluginSettings } from "./settings";
 
 export interface ArrowIdentifierData {
@@ -12,9 +12,12 @@ export interface ArrowIdentifierData {
     isStart: boolean,
     opacity: number,
     color?: string,
+    boxColor?: string,
     type?: string,
     track?: number,
-    arrowArrowhead?: string
+    arrowArrowhead?: string,
+    isBox?: boolean,
+    isBoxClosing?: boolean
 }
 
 export interface ArrowIdentifierPosData {
@@ -26,7 +29,8 @@ export interface ArrowIdentifierPosData {
 export interface ArrowIdentifierCollection {
     identifier: string,
     start?: ArrowIdentifierPosData,
-    ends: ArrowIdentifierPosData[]
+    ends: ArrowIdentifierPosData[],
+    boxClosings: ArrowIdentifierPosData[]
 }
 
 export interface ArrowRecord {
@@ -64,6 +68,7 @@ export function arrowSourceToArrowIdentifierData(arrowSource: string):ArrowIdent
         type: MARGIN,
         opacity: 1,
         track: 0,
+        isBox: false
     };
 
     result.arrowArrowhead = result.isStart ? NOARROW : ARROW;
@@ -73,15 +78,39 @@ export function arrowSourceToArrowIdentifierData(arrowSource: string):ArrowIdent
     if (result.isStart && options.length === 2 && arrowPlugTypes.contains(options[1])) {
         result.isStart = false;
     }
+    
+    // If we have only "box" as option (e.g., {arrow3|box}), treat it as an end identifier
+    if (result.isStart && options.length === 2 && options[1] === BOX) {
+        result.isStart = false;
+    }
 
-    const identifier = options.shift();
+    let identifier = options.shift();
+    
+    // Check if identifier starts with "/" to indicate a closing tag for box
+    if (identifier && identifier.startsWith("/")) {
+        identifier = identifier.substring(1);
+        result.isStart = false;
+        result.isBoxClosing = true;
+    }
+    
     result.identifier = identifier ? identifier : "";
 
     if (result.isStart) {
         for (const option of options) {
             const optionAsFloat = parseFloat(option);
 
-            if (arrowTypes.contains(option)) {
+            // Check if option contains "box" (e.g., "straight,box" or "box")
+            if (option.contains(BOX)) {
+                result.isBox = true;
+                // Parse the type if it's combined (e.g., "straight,box")
+                const parts = option.split(",");
+                for (const part of parts) {
+                    if (arrowTypes.contains(part)) {
+                        result.type = part;
+                    }
+                }
+            }
+            else if (arrowTypes.contains(option)) {
                 result.type = option;
             }
             else if (arrowPlugTypes.contains(option)) {
@@ -94,11 +123,60 @@ export function arrowSourceToArrowIdentifierData(arrowSource: string):ArrowIdent
                 result.opacity = optionAsFloat;
             }
             else {
-                // Don't allow re-writing the color
-                // Ensures arrows keep the same color while the user is typing/adding
-                // more properties to the syntax
-                if (!result.color) {
-                    result.color = option;
+                // Handle colors (can be two colors separated by comma for box)
+                // e.g., "#1e90ff, #ffffff" or just "#1e90ff"
+                if (option.contains(",")) {
+                    const colors = option.split(",").map(c => c.trim());
+                    if (!result.color) {
+                        result.color = colors[0];
+                        if (colors.length > 1) {
+                            result.boxColor = colors[1];
+                        }
+                    }
+                }
+                else {
+                    // Don't allow re-writing the color
+                    // Ensures arrows keep the same color while the user is typing/adding
+                    // more properties to the syntax
+                    if (!result.color) {
+                        result.color = option;
+                    }
+                }
+            }
+        }
+    }
+    else if (!result.isBoxClosing) {
+        // For end identifiers (not box closing), allow box option and color
+        for (const option of options) {
+            if (option.contains(BOX)) {
+                result.isBox = true;
+                // Parse the type if it's combined (e.g., "straight,box")
+                const parts = option.split(",");
+                for (const part of parts) {
+                    if (arrowTypes.contains(part)) {
+                        result.type = part;
+                    }
+                }
+            }
+            else if (arrowPlugTypes.contains(option)) {
+                result.arrowArrowhead = option;
+            }
+            else {
+                // Handle colors for box border
+                if (option.contains(",")) {
+                    const colors = option.split(",").map(c => c.trim());
+                    if (!result.color) {
+                        result.color = colors[0];
+                        if (colors.length > 1) {
+                            result.boxColor = colors[1];
+                        }
+                    }
+                }
+                else {
+                    // Single color - use as box color for end identifiers with box
+                    if (!result.color && result.isBox) {
+                        result.boxColor = option;
+                    }
                 }
             }
         }

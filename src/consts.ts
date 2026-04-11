@@ -7,13 +7,19 @@ export const ARROW_CONTAINER_CLASS = "arrow-container";
 export const ARROW_SIZE = 3;
 export const DIAGONAL = "diagonal";
 export const MARGIN = "margin";
-export const arrowTypes = [DIAGONAL, MARGIN];
+export const STRAIGHT = "straight";
+export const arrowTypes = [DIAGONAL, MARGIN, STRAIGHT];
 export const ARROW = "arrow";
 export const NOARROW = "no-arrow";
 export const arrowPlugTypes = [ARROW, NOARROW];
 export const DISC = "disc";
+export const BOX = "box";
 export const MARGIN_ARROW_X_OFFSET = 20;
 
 // Leader-Line library
 export const MARGIN_ARROW = "arrow1";
 export const DIAGONAL_ARROW = "arrow2";
+export const STRAIGHT_ARROW = "arrow2";
+
+// Classes
+export const ARROW_BOX_CLASS = "arrow-box";
