@@ -1,3 +1,3 @@
-# Arrows 1.0.1
+# Arrows 1.0.2
 
-32c4e68 Modernize release workflow and Obsidian store compliance
+dd8e635 fix(release): checkout explicite du tag et git add -f main.js
