@@ -181,6 +181,20 @@ Une flèche est tracée du (ou des) début(s) vers **toutes** les fins portant l
 
 Les contributions et les PR sont les bienvenues.
 
+## Provenance
+
+Ce dépôt est maintenu par [l'Atelier](https://atelier.atechnologie.fr/) et s’appuie sur le plugin original [Arrows](https://github.com/artisticat1/arrows) de **artisticat1** (licence MIT). L’auteur original est crédité comme contributeur du projet d’origine.
+
+> **Catalogue Obsidian** : si vous soumettez ce plugin au catalogue communautaire, la politique Obsidian sur les forks peut exiger l’accord écrit de l’auteur original ou la preuve qu’il est injoignable et inactif depuis 6 mois.
+
+## Catalogue Obsidian
+
+- **ID plugin** : `arrows-in-md`
+- **Dépôt** : [github.com/Morglaf/arrows](https://github.com/Morglaf/arrows)
+- **Licence** : MIT — [LICENSE](LICENSE)
+- **Réseau** : non
+- **Release** : `.\Release-Plugin.ps1`
+
 ## Remerciements
 
 Le projet utilise la bibliothèque [leader-line](https://anseki.github.io/leader-line/) pour le rendu des flèches.
