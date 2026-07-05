@@ -1,6 +1,6 @@
 {
 	"name": "arrows-in-md",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Draw arrows across different parts of your notes, similar to on paper",
 	"main": "main.js",
 	"scripts": {
